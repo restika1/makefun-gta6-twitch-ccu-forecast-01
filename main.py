@@ -135,9 +135,16 @@ def build_model_curves(case: dict) -> tuple[list[float], list[list[float]]]:
             if z == 0:
                 spread = 0.0
             else:
-                ratio = q_val / med if med > 0 else 1.0
-                ratio = max(0.01, min(100, ratio))  # clamp
-                spread = math.log(ratio) / z
+                # Guard against extreme ratios when median is tiny; use symmetric log-spread fallback
+                if med <= 1e-6:
+                    spread = 0.15 * math.sqrt(h + 1)  # persistence baseline spread for this hour
+                else:
+                    ratio = q_val / med
+                    ratio = max(0.01, min(100, ratio))  # clamp
+                    spread = math.log(ratio) / z
+                    # Cap spread to reasonable range (persistence baseline * 5)
+                    max_spread = 0.15 * math.sqrt(h + 1) * 5
+                    spread = max(-max_spread, min(max_spread, spread))
             hour_spreads.append(spread)
         spreads.append(hour_spreads)
     
